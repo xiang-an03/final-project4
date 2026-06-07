@@ -1,14 +1,22 @@
 import os
 import json
 import urllib.parse
-import requests
+import os
+import json
+import urllib.parse
 from flask import Flask, render_template, request, jsonify
+# 🎯 引入 Google 官方最新的 GenAI 客戶端
+from google import genai
+from google.genai import types
 
-# 建立 Flask 應用程式實例
 app = Flask(__name__, template_folder='../templates')
 
-
+# 🔒 讀取你在 AI Studio 申請的最新 AQ. 金鑰
 API_KEY = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6J62BToUBGCQmo0Eb1L4-rX2E6Bwo5sNldm4j1jemi8tg")
+
+# 🤖 初始化 Google 官方客戶端（這會完美處理 AQ. 金鑰的憑證安全驗證）
+client = genai.Client(api_key=API_KEY)
+
 TAG_MAP = {
     "dog_style": "犬系風格長相", "cat_style": "貓系風格長相", "fox_style": "狐狸系風格長相",
     "single_eyelid": "單眼皮/內雙", "double_eyelid": "雙眼皮", "has_tearbags": "有臥蠶",
@@ -33,7 +41,7 @@ def match_ideal_type():
     features_str = "、".join(chinese_features) if chinese_features else "未特別指定"
 
     prompt = f"""
-    你是全球娛樂圈的大數據專家。請根據使用者的理想型條件，從【亞洲地區】（包含台灣、韓國、日本、中國大陸、香港）挑選出一位最完美符合的真實知名藝人明星。
+    你是全球娛樂圈的大數據專家。請根據使用者的理想型條件，從【亞洲地區】挑選出一位最完美符合的真實知名藝人明星。
 
     使用者期望條件：
     - 性別偏好：{gender_pref} 的亞洲明星
@@ -48,34 +56,20 @@ def match_ideal_type():
     }}
     """
 
-    # 🌐 絕對純淨的 API 請求路徑（已徹底洗白）
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-    # 📝 宣告標頭（確保絕對定義，修復 name 'headers' is not defined 錯誤）
-    headers = {"Content-Type": "application/json"}
-    
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
-    }
-
     try:
-        # 發送 POST 請求
-        response = requests.post(url, headers=headers, json=payload)
-        response_data = response.json()
+        # 🚀 使用官方標準客戶端呼叫 Gemini 1.5 Flash
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt,
+        )
         
-        # 🛡️ 安全防禦機制 1：如果 Google 伺服器回傳明確錯誤（例如金鑰未授權、配額上限）
-        if 'error' in response_data:
-            return jsonify({"message": f"Google Gemini 拒絕了請求。原因: {response_data['error'].get('message', '未知錯誤')}"}), 400
-            
-        # 🛡️ 安全防禦機制 2：如果回傳結構怪異，缺少關鍵的 candidates
-        if 'candidates' not in response_data or not response_data['candidates']:
-            return jsonify({"message": f"Gemini 沒有正常回應內容。完整回應日誌: {json.dumps(response_data)}"}), 500
-            
-        # 正常解析流程
-        raw_text = response_data['candidates'][0]['content']['parts'][0]['text']
-        clean_text = raw_text.replace("```json", "").replace("```", "").strip()
+        # 取得回傳文字並清乾淨
+        raw_text = response.text
+        clean_text = raw_text.replace("
+```json", "").replace("```", "").strip()
         result_data = json.loads(clean_text)
         
-        # 動態產生該明星的社群與搜尋連結
+        # 產生相關社群搜尋連結
         encoded_name = urllib.parse.quote(result_data['name'])
         result_data['instagram_url'] = f"[https://www.instagram.com/explore/tags/](https://www.instagram.com/explore/tags/){encoded_name}/"
         result_data['photo_url'] = f"[https://www.google.com/search?tbm=isch&q=](https://www.google.com/search?tbm=isch&q=){encoded_name}"
@@ -84,9 +78,8 @@ def match_ideal_type():
         return jsonify(result_data)
 
     except Exception as e:
-        return jsonify({"message": f"系統內部處理發生錯誤，請稍後再試！(詳細原因: {str(e)})"}), 500
+        return jsonify({"message": f"Gemini 運算發生錯誤，請稍後再試！(詳細原因: {str(e)})"}), 500
 
-# 🔒 Vercel 雲端平台必備的進入點映射
 handler = app
 application = app
 
