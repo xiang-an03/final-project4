@@ -1,20 +1,21 @@
 import os
 import json
 import urllib.parse
-import os
-import json
-import urllib.parse
 from flask import Flask, render_template, request, jsonify
-# 🎯 引入 Google 官方最新的 GenAI 客戶端
 from google import genai
 from google.genai import types
 
+# 🎯 1. 確保 Flask 實例在最頂層最先初始化，解決 Vercel 找不到 app 的編譯錯誤
 app = Flask(__name__, template_folder='../templates')
 
-# 🔒 讀取你在 AI Studio 申請的最新 AQ. 金鑰
+# 🎯 2. 明確宣告 Vercel 尋找的入口點
+handler = app
+application = app
+
+# 🔒 3. 讀取你在 AI Studio 申請的最新 AQ. 金鑰
 API_KEY = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6J62BToUBGCQmo0Eb1L4-rX2E6Bwo5sNldm4j1jemi8tg")
 
-# 🤖 初始化 Google 官方客戶端（這會完美處理 AQ. 金鑰的憑證安全驗證）
+# 🤖 4. 初始化 Google 官方客戶端（完美支援 2026 新版 AQ. 金鑰驗證）
 client = genai.Client(api_key=API_KEY)
 
 TAG_MAP = {
@@ -57,19 +58,19 @@ def match_ideal_type():
     """
 
     try:
-        # 🚀 使用官方標準客戶端呼叫 Gemini 1.5 Flash
+        # 🚀 使用官方最新標準客戶端呼叫 Gemini 1.5 Flash
         response = client.models.generate_content(
             model='gemini-1.5-flash',
             contents=prompt,
         )
         
-        # 取得回傳文字並清乾淨
+        # 取得回傳文字並清洗 Markdown
         raw_text = response.text
         clean_text = raw_text.replace("
 ```json", "").replace("```", "").strip()
         result_data = json.loads(clean_text)
         
-        # 產生相關社群搜尋連結
+        # 產生相關社群與 Google 搜尋連結
         encoded_name = urllib.parse.quote(result_data['name'])
         result_data['instagram_url'] = f"[https://www.instagram.com/explore/tags/](https://www.instagram.com/explore/tags/){encoded_name}/"
         result_data['photo_url'] = f"[https://www.google.com/search?tbm=isch&q=](https://www.google.com/search?tbm=isch&q=){encoded_name}"
@@ -79,9 +80,6 @@ def match_ideal_type():
 
     except Exception as e:
         return jsonify({"message": f"Gemini 運算發生錯誤，請稍後再試！(詳細原因: {str(e)})"}), 500
-
-handler = app
-application = app
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
