@@ -7,11 +7,8 @@ from flask import Flask, render_template, request, jsonify
 # 建立 Flask 應用程式實例
 app = Flask(__name__, template_folder='../templates')
 
-# =======================================================
-# 🔒 從環境變數讀取最新金鑰，若讀不到則使用預設的真實金鑰
-# =======================================================
-API_KEY = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6KPZu63RbGtZtN4s62JCHjmqX2gCM-WOUwm_0AUGOEZiQ")
 
+API_KEY = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6J62BToUBGCQmo0Eb1L4-rX2E6Bwo5sNldm4j1jemi8tg")
 TAG_MAP = {
     "dog_style": "犬系風格長相", "cat_style": "貓系風格長相", "fox_style": "狐狸系風格長相",
     "single_eyelid": "單眼皮/內雙", "double_eyelid": "雙眼皮", "has_tearbags": "有臥蠶",
